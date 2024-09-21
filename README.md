@@ -18,8 +18,8 @@
   - integration tests that execute small x86 programs
 
 * implement basic debugger
- - add support for breakpoints
- - implement step-by-step execution
- - create a simple command-line interface for the debugger
+  - add support for breakpoints
+  - implement step-by-step execution
+  - create a simple cli for the debugger
 
 last updated 21/09
