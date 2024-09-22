@@ -1,3 +1,7 @@
+--!native
+-- Normally, strict would be here, but I can't debug my code for shit!
+--!optimize 2
+
 local cpu_memory = require("cpu_and_memory")
 local decoder_module = require("decoder")
 
@@ -6,6 +10,8 @@ export type Instruction = {
     size: number,
     operands: {decoder_module.Operand}
 }
+
+type InstructionHandler = (cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: Instruction) -> ()
 
 local function get_operand_value(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, operand: decoder_module.Operand): number
     if operand.type == "register" then
@@ -30,22 +36,22 @@ local function set_operand_value(cpu: cpu_memory.CPU, memory: cpu_memory.Memory,
 end
 
 local function update_flags(cpu: cpu_memory.CPU, result: number, src: number, dest: number)
-    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.ZF, result == 0) -- Zero Flag
-    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.SF, bit32.btest(result, 0x80000000)) -- Sign Flag
-    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.CF, result < 0 or result > 0xFFFFFFFF) -- Carry Flag
+    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.ZF, result == 0)
+    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.SF, bit32.btest(result, 0x80000000))
+    cpu_memory.set_flag(cpu, cpu_memory.FLAGS.CF, result < 0 or result > 0xFFFFFFFF)
     cpu_memory.set_flag(cpu, cpu_memory.FLAGS.OF, 
         (bit32.bxor(bit32.rshift(src, 31), bit32.rshift(dest, 31)) == 0) and
         (bit32.bxor(bit32.rshift(result, 31), bit32.rshift(src, 31)) == 1)
-    ) -- Overflow Flag
+    )
 end
 
-local function mov(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: decoder_module.Instruction)
+local function mov(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: Instruction)
     local dest, src = instruction.operands[1], instruction.operands[2]
     local value = get_operand_value(cpu, memory, src)
     set_operand_value(cpu, memory, dest, value)
 end
 
-local function add(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: decoder_module.Instruction)
+local function add(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: Instruction)
     local dest, src = instruction.operands[1], instruction.operands[2]
     local dest_value = get_operand_value(cpu, memory, dest)
     local src_value = get_operand_value(cpu, memory, src)
@@ -54,7 +60,7 @@ local function add(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: 
     update_flags(cpu, result, src_value, dest_value)
 end
 
-local function sub(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: decoder_module.Instruction)
+local function sub(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: Instruction)
     local dest, src = instruction.operands[1], instruction.operands[2]
     local dest_value = get_operand_value(cpu, memory, dest)
     local src_value = get_operand_value(cpu, memory, src)
@@ -63,7 +69,7 @@ local function sub(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: 
     update_flags(cpu, result, src_value, dest_value)
 end
 
-local function jmp(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: decoder_module.Instruction)
+local function jmp(cpu: cpu_memory.CPU, memory: cpu_memory.Memory, instruction: Instruction)
     local offset = get_operand_value(cpu, memory, instruction.operands[1])
     cpu.ip = cpu.ip + offset
 end
