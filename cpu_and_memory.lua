@@ -44,7 +44,7 @@ local function create_cpu(): CPU
         ip = 0
     }
 
-    local register_names = {"eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"}
+    local register_names = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"}
     for _, name in ipairs(register_names) do
         table.insert(cpu.registers, create_register(name, 32))
     end

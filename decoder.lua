@@ -9,13 +9,6 @@ export type Operand = {
     value: number
 }
 
---[[
-export type Operand = {
-    type: "register" | "immediate" | "memory",
-    value: number
-}
-]]
-
 export type Instruction = {
     opcode: number,
     operands: {Operand},
@@ -88,12 +81,11 @@ local function decode_instruction(cpu: cpu_memory.CPU, memory: cpu_memory.Memory
         cpu.ip += 1
         instruction.operands[1] = {type = "immediate", value = rel8}
         instruction.size += 1
-    elseif opcode == 0x50 or (opcode >= 0x51 and opcode <= 0x57) then -- PUSH r32
+    elseif opcode >= 0x50 and opcode <= 0x57 then -- PUSH r32
         local reg = opcode - 0x50
         instruction.operands[1] = {type = "register", value = reg}
-    elseif opcode == 0x58 or (opcode >= 0x59 and opcode <= 0x5F) then -- POP r32
+    elseif opcode >= 0x58 and opcode <= 0x5F then -- POP r32
         local reg = opcode - 0x58
-        instruction.operands[1] = {type = "register", value = reg}
         instruction.operands[1] = {type = "register", value = reg}
     elseif opcode == 0x8B then -- MOV r32, r/m32
         local mod, reg, rm = decode_modrm(cpu, memory)
@@ -137,6 +129,70 @@ local function decode_instruction(cpu: cpu_memory.CPU, memory: cpu_memory.Memory
         instruction.operands[1] = decode_operand(cpu, memory, mod, rm)
         instruction.operands[2] = {type = "register", value = reg}
         instruction.size += 1
+    elseif opcode == 0xE8 then -- CALL rel32
+        local rel32 = cpu_memory.read_memory(memory, cpu.ip, 4)
+        cpu.ip += 4
+        instruction.operands[1] = {type = "immediate", value = rel32}
+        instruction.size += 4
+    elseif opcode == 0xC3 then -- RET
+        -- No operands needed for RET
+    elseif opcode == 0x74 then -- JE/JZ rel8
+        local rel8 = cpu_memory.read_memory(memory, cpu.ip, 1)
+        cpu.ip += 1
+        instruction.operands[1] = {type = "immediate", value = rel8}
+        instruction.size += 1
+    elseif opcode == 0x75 then -- JNE/JNZ rel8
+        local rel8 = cpu_memory.read_memory(memory, cpu.ip, 1)
+        cpu.ip += 1
+        instruction.operands[1] = {type = "immediate", value = rel8}
+        instruction.size += 1
+    elseif opcode == 0x7F then -- JG rel8
+        local rel8 = cpu_memory.read_memory(memory, cpu.ip, 1)
+        cpu.ip += 1
+        instruction.operands[1] = {type = "immediate", value = rel8}
+        instruction.size += 1
+    elseif opcode == 0x7C then -- JL rel8
+        local rel8 = cpu_memory.read_memory(memory, cpu.ip, 1)
+        cpu.ip += 1
+        instruction.operands[1] = {type = "immediate", value = rel8}
+        instruction.size += 1
+    elseif opcode == 0xF7 then -- MUL/DIV/IMUL/IDIV r/m32
+        local mod, reg, rm = decode_modrm(cpu, memory)
+        instruction.operands[1] = decode_operand(cpu, memory, mod, rm)
+        instruction.size += 1
+    elseif opcode == 0xFF then -- INC/DEC r/m32
+        local mod, reg, rm = decode_modrm(cpu, memory)
+        instruction.operands[1] = decode_operand(cpu, memory, mod, rm)
+        instruction.size += 1
+    elseif opcode == 0xD3 then -- SHL/SHR/SAL/SAR/ROL/ROR r/m32, CL
+        local mod, reg, rm = decode_modrm(cpu, memory)
+        instruction.operands[1] = decode_operand(cpu, memory, mod, rm)
+        instruction.operands[2] = {type = "register", value = 1} -- CL register
+        instruction.size += 1
+    elseif opcode == 0x0F then -- Two-byte opcode
+        local second_opcode = cpu_memory.read_memory(memory, cpu.ip, 1)
+        cpu.ip += 1
+        instruction.opcode = bit32.lshift(opcode, 8) + second_opcode
+        instruction.size += 1
+
+        if second_opcode == 0xAF then -- IMUL r32, r/m32
+            local mod, reg, rm = decode_modrm(cpu, memory)
+            instruction.operands[1] = {type = "register", value = reg}
+            instruction.operands[2] = decode_operand(cpu, memory, mod, rm)
+            instruction.size += 1
+        elseif second_opcode == 0xBE then -- MOVSX r32, r/m8
+            local mod, reg, rm = decode_modrm(cpu, memory)
+            instruction.operands[1] = {type = "register", value = reg}
+            instruction.operands[2] = decode_operand(cpu, memory, mod, rm)
+            instruction.size += 1
+        elseif second_opcode == 0xBF then -- MOVSX r32, r/m16
+            local mod, reg, rm = decode_modrm(cpu, memory)
+            instruction.operands[1] = {type = "register", value = reg}
+            instruction.operands[2] = decode_operand(cpu, memory, mod, rm)
+            instruction.size += 1
+        else
+            error(string.format("Unimplemented two-byte opcode: 0x0F%02X", second_opcode))
+        end
     else
         error(string.format("Unimplemented opcode: 0x%02X", opcode))
     end
