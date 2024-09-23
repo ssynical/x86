@@ -5,7 +5,7 @@
 local cpu_memory = require("cpu_and_memory")
 
 export type Operand = {
-    type: string, -- "register", "immediate", "memory"
+    type: "register" | "immediate" | "memory", -- "register", "immediate", "memory" -- Have Fun
     value: number
 }
 
